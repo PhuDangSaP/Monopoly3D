@@ -19,7 +19,6 @@ public class CellData
 {
     public CellType type;
     public Vector2 position;
-    public Vector2 size;
     public int price;
 }
 
