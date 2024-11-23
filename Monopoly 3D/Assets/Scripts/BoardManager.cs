@@ -1,5 +1,4 @@
 using System;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public enum CellType
@@ -13,7 +12,6 @@ public enum CellType
     CHEST,
     PROPERTY
 }
-
 [Serializable]
 public class CellData
 {
@@ -21,15 +19,46 @@ public class CellData
     public Vector2 position;
     public int price;
 }
-
+[CreateAssetMenu(fileName = "BoardData", menuName = "MonopolyData/Create New BoardData")]
+public class BoardData:ScriptableObject
+{
+    public CellData[] data;
+}
 
 public class BoardManager : MonoBehaviour
 {
-    public CellData[] cellData;
+    private static BoardManager instance;
+    [SerializeField]
+    private BoardData boardData;
 
-    private void Start()
+    private void Awake()
     {
-     
+        instance = this;
+    }
+    public static BoardManager GetInstance()
+    {
+        if (instance == null)
+        {
+            instance = new BoardManager();
+        }
+        return instance;
+    }
+    public int GetCellDataLength()
+    {
+        return boardData.data.Length;
+    }
+    public CellData GetCellData(int index)
+    {
+        return (boardData.data[index]);
+    }
+    public int GetIndexOfCellType(CellType type)
+    {
+        for(int i = 0; i < boardData.data.Length; i++)
+        {
+            if (boardData.data[i].type == type)
+                return i;
+        }
+        return -1;
     }
 
 }

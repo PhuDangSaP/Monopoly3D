@@ -4,7 +4,6 @@ public class Dice : MonoBehaviour
 {
     private Rigidbody rb;
     private Vector3 diceVelocity;
-
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();

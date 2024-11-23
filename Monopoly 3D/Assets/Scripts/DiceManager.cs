@@ -2,27 +2,27 @@ using UnityEngine;
 
 public class DiceManager : MonoBehaviour
 {
+    private static DiceManager instance;
     private GameObject[] dices;
     private bool inAction = false;
 
     private void Awake()
     {
+        instance = this;
         dices = GameObject.FindGameObjectsWithTag("Dice");
     }
     private void Update()
     {
         if (IsAllStopped() && inAction)
         {
-            Debug.Log(dices[0].GetComponent<Dice>().IsStopped());
             PlayerManager playerManager = GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerManager>();
             if (playerManager.GetIsMoving()) return;
             playerManager.MovePlayer(GetDicesValue());
         }
         if (!IsAllStopped())
         {
-            inAction = true; 
+            inAction = true;
         }
-
     }
     public void RollDices()
     {
@@ -57,5 +57,13 @@ public class DiceManager : MonoBehaviour
     public void ResetAction()
     {
         inAction = false;
+    }
+    public static DiceManager GetInstace()
+    {
+        if(instance == null)
+        {
+            instance = new DiceManager();
+        }
+        return instance;
     }
 }
