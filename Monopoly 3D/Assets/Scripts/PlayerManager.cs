@@ -96,7 +96,7 @@ public class PlayerManager : MonoBehaviour
                 {
                     // mua
                     // bật ui mua property
-                }    
+                }
                 break;
         }
         Debug.Log(data.type);
