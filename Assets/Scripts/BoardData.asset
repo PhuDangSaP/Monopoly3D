@@ -1,0 +1,175 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b463b3e61c60d64abecab98f85fa9db, type: 3}
+  m_Name: BoardData
+  m_EditorClassIdentifier: Assembly-CSharp::BoardData
+  data:
+  - type: 0
+    position: {x: -16, y: 16}
+    name: 
+    price: 0
+  - type: 7
+    position: {x: -12, y: 16}
+    name: MEDITER-RANEAN AVENUE
+    price: 60
+  - type: 6
+    position: {x: -9, y: 16}
+    name: COMMUNITY CHEST
+    price: 0
+  - type: 7
+    position: {x: -6, y: 16}
+    name: BALTIC AVENUE
+    price: 60
+  - type: 5
+    position: {x: -3, y: 16}
+    name: ICONME TAX
+    price: 200
+  - type: 5
+    position: {x: 0, y: 16}
+    name: READING RAILROAD
+    price: 200
+  - type: 7
+    position: {x: 3, y: 16}
+    name: ORIENTAL AVENUE
+    price: 100
+  - type: 4
+    position: {x: 6, y: 16}
+    name: CHANCE
+    price: 0
+  - type: 7
+    position: {x: 9, y: 16}
+    name: VERMONT AVENUE
+    price: 100
+  - type: 7
+    position: {x: 9, y: 16}
+    name: CONNECTICUT AVENUE
+    price: 120
+  - type: 2
+    position: {x: 16, y: 16}
+    name: JAIL
+    price: 0
+  - type: 7
+    position: {x: 16, y: 12}
+    name: ST. CHARLES PLACE
+    price: 140
+  - type: 5
+    position: {x: 16, y: 9}
+    name: ELECTRIC COMPANY
+    price: 150
+  - type: 7
+    position: {x: 16, y: 6}
+    name: STATES AVENUE
+    price: 140
+  - type: 7
+    position: {x: 16, y: 3}
+    name: VIRGINIA AVENUE
+    price: 160
+  - type: 5
+    position: {x: 16, y: 0}
+    name: PENNYSYLVANIA RAILROAD
+    price: 200
+  - type: 7
+    position: {x: 16, y: -3}
+    name: ST. JAMES PLACE
+    price: 180
+  - type: 6
+    position: {x: 16, y: -6}
+    name: COMMUNITY CHEST
+    price: 200
+  - type: 7
+    position: {x: 16, y: -9}
+    name: TENNESSEE AVENUE
+    price: 180
+  - type: 7
+    position: {x: 16, y: -12}
+    name: NEW YORK AVENUE
+    price: 200
+  - type: 3
+    position: {x: 16, y: -16}
+    name: FREEPARKING
+    price: 0
+  - type: 7
+    position: {x: 12, y: -16}
+    name: KENTUCKY AVENUE
+    price: 220
+  - type: 4
+    position: {x: 9, y: -16}
+    name: CHANCE
+    price: 0
+  - type: 7
+    position: {x: 6, y: -16}
+    name: INDIANA AVENUE
+    price: 220
+  - type: 7
+    position: {x: 3, y: -16}
+    name: ILLINOIS AVENUE
+    price: 240
+  - type: 5
+    position: {x: 0, y: -16}
+    name: B & O RAILROAD
+    price: 200
+  - type: 7
+    position: {x: -3, y: -16}
+    name: ATLANTIC AVENUE
+    price: 260
+  - type: 7
+    position: {x: -6, y: -16}
+    name: VENTINOR AVENUE
+    price: 260
+  - type: 5
+    position: {x: -9, y: -16}
+    name: WATER WORKS
+    price: 150
+  - type: 7
+    position: {x: -12, y: -16}
+    name: MARVIN GARDENS
+    price: 280
+  - type: 1
+    position: {x: -16, y: -16}
+    name: GOTOJAIL
+    price: 0
+  - type: 7
+    position: {x: -16, y: -12}
+    name: PACIFIC AVENUE
+    price: 300
+  - type: 7
+    position: {x: -16, y: -9}
+    name: NORTH CAROLINA AVENUE
+    price: 300
+  - type: 6
+    position: {x: -16, y: -6}
+    name: COMMUNITY CHEST
+    price: 0
+  - type: 7
+    position: {x: -16, y: -3}
+    name: PENNSYLVANIA CHEST
+    price: 320
+  - type: 5
+    position: {x: -16, y: 0}
+    name: SHORT LINE
+    price: 200
+  - type: 4
+    position: {x: -16, y: 3}
+    name: CHANCE
+    price: 0
+  - type: 7
+    position: {x: -16, y: 6}
+    name: PARK PLACE
+    price: 350
+  - type: 5
+    position: {x: -16, y: 9}
+    name: LUXURY TAX
+    price: 100
+  - type: 7
+    position: {x: -16, y: 12}
+    name: BOARDWALK
+    price: 400
