@@ -18,6 +18,8 @@ public class CellData
 {
     public CellType type;
     public Vector2 position;
+    public Vector2 houseOffset;
+    public GameObject houseObject;
     public string name;
     public int price;
 }

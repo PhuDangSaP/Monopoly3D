@@ -18,7 +18,7 @@ public class DiceManager : NetworkBehaviour
         if (IsServer && hasRolled && IsAllStopped() && !inAction && TurnManager.Instance.isStarted)
         {
             ulong currentPlayerId = TurnManager.Instance.GetCurrentPlayerId();
-            PlayerManager currentPlayer = NetworkManager.Singleton.ConnectedClients[currentPlayerId].PlayerObject.GetComponent<PlayerManager>();
+            PlayerController currentPlayer = NetworkManager.Singleton.ConnectedClients[currentPlayerId].PlayerObject.GetComponent<PlayerController>();
             if (!currentPlayer.GetIsMoving())
             {
                 currentPlayer.MovePlayer(GetDicesValue());

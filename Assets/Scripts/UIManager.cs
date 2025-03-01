@@ -8,6 +8,7 @@ public class UIManager : MonoBehaviour
 
     public Button ButtonRollDices;
     public GameObject CardBuyProperty;
+    public GameObject CardBuyBackProperty;
     public GameObject CardChance;
     public GameObject CardTax;
     public GameObject CardChest;
@@ -27,6 +28,11 @@ public class UIManager : MonoBehaviour
     public void CloseCardBuyProperty()
     {
         CardBuyProperty.SetActive(false);
+        TurnManager.Instance.NextTurnServerRpc();
+    }
+    public void CloseCardBuyBackProperty()
+    {
+        CardBuyBackProperty.SetActive(false);
         TurnManager.Instance.NextTurnServerRpc();
     }
     public void ExitToLobbyScene()

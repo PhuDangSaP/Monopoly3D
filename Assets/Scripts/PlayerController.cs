@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class PlayerManager : NetworkBehaviour
+public class PlayerController : NetworkBehaviour
 {
     [SerializeField] private float moveSpeed = 10f;
     private int currentTileIndex = 0;
@@ -30,7 +30,7 @@ public class PlayerManager : NetworkBehaviour
         SceneManager.sceneLoaded += SceneLoaded;
 
     }
-    public void MovePlayer(int steps)
+    public void MovePlayer(int steps) // đc gọi từ server
     {
         Debug.Log("move");
         int targetTileIndex = (currentTileIndex + steps) % BoardManager.GetInstance().GetCellDataLength();
@@ -41,7 +41,6 @@ public class PlayerManager : NetworkBehaviour
 
     private IEnumerator MoveToTileNew(int targetCellIndex)
     {
-        Debug.Log("TEESSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSST");
         while (currentTileIndex != targetCellIndex)
         {
             if (currentTileIndex == BoardManager.GetInstance().GetCellDataLength() - 1)
@@ -54,13 +53,7 @@ public class PlayerManager : NetworkBehaviour
 
             transform.position = nextCellPosition; ;
             MovePlayerClientRpc(nextCellPosition, currentTileIndex); // Đồng bộ vị trí với client
-            //while (Vector3.Distance(transform.position, nextCellPosition) > 0.1f)
-            //{
-            //    transform.position = Vector3.MoveTowards(transform.position, nextCellPosition, moveSpeed * Time.deltaTime); 
-            //    yield return null;
-            //}
-            //Debug.Log("Sync move!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            //MovePlayerClientRpc(transform.position); // Đồng bộ vị trí với client
+
             yield return new WaitForSeconds(0.1f);
         }
         isMoving = false;
@@ -108,6 +101,7 @@ public class PlayerManager : NetworkBehaviour
     {
         DiceManager.GetInstace().ResetAction();
         CellData data = BoardManager.GetInstance().GetCellData(currentTileIndex);
+        ulong currentPlayerId = TurnManager.Instance.GetCurrentPlayerId();
         switch (data.type)
         {
             case CellType.GO:
@@ -115,74 +109,136 @@ public class PlayerManager : NetworkBehaviour
                 break;
             case CellType.GOTOJAIL:
                 SoundManager.PlaySound(SoundManager.Sound.GotoJail);
-                GotoJailClientRpc();
+                GotoJailClientRpc(currentPlayerId);
                 break;
             case CellType.JAIL:
-                JailClientRPC();
+                SoundManager.PlaySound(SoundManager.Sound.GotoJail);
+                JailClientRPC(currentPlayerId);
                 break;
             case CellType.FREEPARKING:
                 TurnManager.Instance.NextTurnServerRpc();
                 break;
             case CellType.CHANCE:
-
                 HandleChanceClientRpc();
                 break;
             case CellType.TAX:
-
                 TurnManager.Instance.NextTurnServerRpc();
                 PayTaxClientRpc(data.name, data.price);
                 break;
             case CellType.CHEST:
                 TurnManager.Instance.NextTurnServerRpc();
-                ChestClientRpc(data.name);
+                ChestClientRpc(currentPlayerId, data.name);
                 break;
             case CellType.PROPERTY:
-                BankManager bankManager = BankManager.Instance;
-                if (bankManager.IsPropertyOwned(currentTileIndex))
-                {
-                    if (OwnerClientId == bankManager.GetPropertyOwner(currentTileIndex))
-                    {
-                        // nâng cấp
-                        Debug.Log("My house");
-                    }
-                    else
-                    {
-                        // trả tiền thuê
-                        PayRentClientRpc(bankManager.GetPropertyOwner(currentTileIndex), data.name, data.price);
-                    }
-                    TurnManager.Instance.NextTurnServerRpc();
-                }
-                else
-                {
-                    //// mua
-                    //// bật ui mua property
-                    //GameObject card = UIManager.Instance.CardBuyProperty;
-                    //card.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = data.name;
-                    //card.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = data.price.ToString();
-                    //card.SetActive(true);
-
-                    //Button btn = card.transform.GetChild(2).GetComponent<Button>();
-                    //btn.onClick.RemoveAllListeners();
-                    //if (money - data.price < 0)
-                    //{
-                    //    btn.gameObject.SetActive(false);
-                    //}
-                    //else
-                    //{
-                    //    btn.gameObject.SetActive(true);
-                    //    btn.onClick.AddListener(BuyProperty);
-                    //}
-                    ShowBuyPropertyUiClientRpc(currentTileIndex, data.name, data.price);
-
-                }
+                HandlePropertyEventServerRpc(currentTileIndex);
                 break;
         }
         Debug.Log(data.type);
     }
-    [ClientRpc]
-    private void ShowBuyPropertyUiClientRpc(int tileIndex, string name, int price)
+    [ServerRpc(RequireOwnership = false)]
+    private void HandlePropertyEventServerRpc(int tileIndex, ServerRpcParams rpcParams = default)
     {
-        if (IsOwner)
+        BankManager bankManager = BankManager.Instance;
+        ulong currentClientId = TurnManager.Instance.GetCurrentPlayerId();
+        CellData data = BoardManager.GetInstance().GetCellData(currentTileIndex);
+        if (bankManager.IsPropertyOwned(currentTileIndex))
+        {
+            ulong ownerId = bankManager.GetPropertyOwner(currentTileIndex);
+            if (currentClientId == ownerId) // Chủ của property
+            {
+                Debug.Log("Client" + currentClientId + " is on his property");
+                // Xử lý nâng cấp
+                TurnManager.Instance.NextTurnServerRpc();
+            }
+            else // đi vào property của client khác
+            {
+
+                Debug.Log("Client" + currentClientId + " is on " + ownerId + " property");
+                // Xử lý trả tiền thuê
+                PlayerController senderClient = NetworkManager.Singleton.ConnectedClients[currentClientId].PlayerObject.GetComponent<PlayerController>();
+
+                DecreaseClientMoneyServerRpc(currentClientId, data.price); // đồng bộ trừ tiền cho  client đang xử lý xử kiện
+
+                AddClientMoneyServerRpc(ownerId, data.price); // đồng bộ cộng tiền cho chủ property
+
+                int buyBackPrice = (int)(data.price * 1.5f);
+                if (senderClient.GetMoney() >= buyBackPrice) // kiểm tra người chơi có đủ tiền mua lại property ko
+                {
+                    ShowBuyBackPropertyUiClientRpc(currentClientId, ownerId, tileIndex, data.name, buyBackPrice); // Bật ui mua lại property cho sender client
+                }
+                else
+                {
+                    TurnManager.Instance.NextTurnServerRpc();
+                }
+            }
+        }
+        else // property chưa ai mua
+        {
+            Debug.Log($"[Server] Calling ShowBuyPropertyUiClientRpc for Client {currentClientId}");
+            ShowBuyPropertyUiClientRpc(currentClientId, tileIndex, data.name, data.price); // Bật ui mua property cho sender client
+        }
+    }
+
+
+    [ClientRpc]
+    private void ShowBuyBackPropertyUiClientRpc(ulong clientId, ulong ownerId, int tileIndex, string name, int price)
+    {
+        if (IsOwner && NetworkManager.Singleton.LocalClientId == clientId)
+        {
+            GameObject card = UIManager.Instance.CardBuyBackProperty;
+            card.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = name;
+            card.transform.GetChild(2).GetComponent<TextMeshProUGUI>().text = price.ToString();
+            card.transform.GetChild(3).gameObject.SetActive(true);
+            card.transform.GetChild(4).gameObject.SetActive(true);
+
+            Button btnBuyBack = card.transform.GetChild(3).GetComponent<Button>();
+            btnBuyBack.onClick.RemoveAllListeners();
+            btnBuyBack.onClick.AddListener(() =>
+            {
+                DecreaseClientMoneyServerRpc(clientId, price); // trả tiền mua lại property
+                RequestBuyBackServerRpc(ownerId, tileIndex, price); // cập nhập lại chủ của property
+                AddClientMoneyServerRpc(ownerId, price);  // cộng tiền cho chủ củ
+                card.SetActive(false);
+                TurnManager.Instance.NextTurnServerRpc();
+            });
+
+            card.SetActive(true);
+        }
+    }
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestBuyBackServerRpc(ulong ownerId, int tileIndex, int offerPrice, ServerRpcParams rpcParams = default)
+    {
+        ulong buyerId = rpcParams.Receive.SenderClientId;
+
+        // Lấy thông tin người chơi mua lại
+        PlayerController buyer = NetworkManager.Singleton.ConnectedClients[buyerId].PlayerObject.GetComponent<PlayerController>();
+
+        // Cập nhật chủ sở hữu mới
+        BankManager.Instance.RemovePropertyOwner(tileIndex);
+        BankManager.Instance.SetPropertyOwner(tileIndex, buyerId);
+
+        // Xóa nhà cũ
+        CellData data = BoardManager.GetInstance().GetCellData(tileIndex);
+        if (data.houseObject != null)
+        {
+            NetworkObject netObj = data.houseObject.GetComponent<NetworkObject>();
+            if (netObj.IsSpawned)
+            {
+                netObj.Despawn(true); // Hủy bỏ object trên tất cả client
+            }
+
+            data.houseObject = null; // Xóa reference trong CellData
+        }
+        // Spawn nhà mới
+        SpawnHouseServerRpc(tileIndex);
+    }
+
+
+
+    [ClientRpc]
+    private void ShowBuyPropertyUiClientRpc(ulong clientId, int tileIndex, string name, int price)
+    {
+        if (NetworkManager.Singleton.LocalClientId == clientId)
         {
             GameObject card = UIManager.Instance.CardBuyProperty;
             card.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = name;
@@ -217,7 +273,8 @@ public class PlayerManager : NetworkBehaviour
         if (money >= propertyPrice)
         {
             BuyPropertyServerRpc(currentTileIndex, propertyPrice);
-            SpawnHouseServerRpc(data.position);
+
+            SpawnHouseServerRpc(currentTileIndex);
         }
         else
         {
@@ -248,17 +305,39 @@ public class PlayerManager : NetworkBehaviour
 
 
     [ServerRpc(RequireOwnership = false)]
-    private void SpawnHouseServerRpc(Vector2 position)
+    private void SpawnHouseServerRpc(int tileIndex, ServerRpcParams rpcParams = default)
     {
-        if (IsServer)
-        {
-            GameObject house = Instantiate(housePrefab);
-            house.transform.position = new Vector3(position.x, 0.12f, position.y);
-            house.GetComponent<NetworkObject>().Spawn();
-            SetHouseColorClientRpc(house.GetComponent<NetworkObject>(), (int)OwnerClientId);
+        if (!IsServer) return;
 
-        }
+        CellData data = BoardManager.GetInstance().GetCellData(tileIndex);
+        if (data.houseObject != null) return;
+
+        GameObject house = Instantiate(housePrefab);
+        Vector2 housePos = data.position + data.houseOffset;
+        house.transform.position = new Vector3(housePos.x, 0.12f, housePos.y);
+
+        NetworkObject netObj = house.GetComponent<NetworkObject>();
+        netObj.Spawn();
+
+        data.houseObject = house;
+        SetHouseColorClientRpc(house.GetComponent<NetworkObject>(), (int)OwnerClientId);
+        // Thông báo cho client cập nhật dữ liệu
+        UpdateHouseClientRpc(tileIndex, netObj.NetworkObjectId);
     }
+    [ClientRpc]
+    private void UpdateHouseClientRpc(int tileIndex, ulong houseNetId)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(houseNetId, out NetworkObject houseObj))
+        {
+            Debug.LogError("House object not found on client!");
+            return;
+        }
+
+        // Lưu nhà vào dữ liệu trên client
+        CellData data = BoardManager.GetInstance().GetCellData(tileIndex);
+        data.houseObject = houseObj.gameObject;
+    }
+
     [ClientRpc]
     private void SetHouseColorClientRpc(NetworkObjectReference houseRef, int materialIndex)
     {
@@ -273,12 +352,12 @@ public class PlayerManager : NetworkBehaviour
     [ClientRpc]
     private void PayRentClientRpc(ulong clientId, string name, int price)
     {
-        GameObject card = UIManager.Instance.CardBuyProperty;
-        card.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = name;
-        card.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = price.ToString();
-        card.transform.GetChild(2).gameObject.SetActive(false);
-        card.transform.GetChild(3).gameObject.SetActive(false);
-        StartCoroutine(HideCardAfterDelay(card, 3));
+        //GameObject card = UIManager.Instance.CardBuyProperty;
+        //card.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = name;
+        //card.transform.GetChild(1).GetComponent<TextMeshProUGUI>().text = price.ToString();
+        //card.transform.GetChild(2).gameObject.SetActive(false);
+        //card.transform.GetChild(3).gameObject.SetActive(false);
+        //StartCoroutine(HideCardAfterDelay(card, 3));
         Debug.Log("PayRent");
 
         if (money - price < 0)
@@ -295,17 +374,52 @@ public class PlayerManager : NetworkBehaviour
 
             UpdateMoneyUI();
 
-            PlayerManager ownerPlayer = NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject.GetComponent<PlayerManager>();
+            PlayerController ownerPlayer = NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject.GetComponent<PlayerController>();
             if (ownerPlayer != null)
             {
-                ownerPlayer.AddMoney(price);
-
+                AddClientMoneyServerRpc(clientId, price);
             }
 
         }
 
     }
 
+    [ServerRpc(RequireOwnership = false)]
+    private void AddClientMoneyServerRpc(ulong clientId, int amount)
+    {
+        if (NetworkManager.Singleton.ConnectedClients.ContainsKey(clientId))
+        {
+            PlayerController player = NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject.GetComponent<PlayerController>();
+            if (player != null)
+            {
+                player.AddMoney(amount);
+                UpdateMoneyClientRpc(clientId, player.GetMoney());
+            }
+        }
+    }
+    [ServerRpc(RequireOwnership = false)]
+    private void DecreaseClientMoneyServerRpc(ulong clientId, int amount)
+    {
+        if (NetworkManager.Singleton.ConnectedClients.ContainsKey(clientId))
+        {
+            PlayerController player = NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject.GetComponent<PlayerController>();
+            if (player != null)
+            {
+                player.DecreaseMoney(amount);
+                UpdateMoneyClientRpc(clientId, player.GetMoney());
+            }
+        }
+    }
+
+    [ClientRpc]
+    private void UpdateMoneyClientRpc(ulong clientId, int amount)
+    {
+        if (NetworkManager.Singleton.LocalClientId == clientId)
+        {
+            money = amount;
+            UpdateMoneyUI();
+        }
+    }
 
     [ClientRpc]
     private void PayTaxClientRpc(string name, int price)
@@ -320,7 +434,7 @@ public class PlayerManager : NetworkBehaviour
             // phá sản
             isBankrupt = true;
             SoundManager.PlaySound(SoundManager.Sound.Bankrupt);
-            StartCoroutine(HideCardAfterDelay(UIManager.Instance.Bankrupt, 4));
+            StartCoroutine(HideCardAfterDelay(UIManager.Instance.Bankrupt, 2));
         }
         else
         {
@@ -334,24 +448,42 @@ public class PlayerManager : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void ChestClientRpc(string name)
+    private void ChestClientRpc(ulong clientId, string name)
     {
-        GameObject chestCard = UIManager.Instance.CardChest;
-        chestCard.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = name;
-        StartCoroutine(HideCardAfterDelay(chestCard, 3));
+        if (NetworkManager.Singleton.LocalClientId == clientId)
+        {
+            GameObject chestCard = UIManager.Instance.CardChest;
+            chestCard.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = name;
+            int amount = 150;
+            chestCard.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Grant: " + amount;
+            StartCoroutine(HideCardAfterDelay(chestCard, 1));
+
+            AddClientMoneyServerRpc(clientId, amount);
+        }
     }
 
     [ClientRpc]
-    private void GotoJailClientRpc()
+    private void GotoJailClientRpc(ulong clientId)
+    {
+        if (NetworkManager.Singleton.LocalClientId == clientId)
+        {
+            StartCoroutine(GotoJailSequence());
+        }
+    }
+
+    private IEnumerator GotoJailSequence()
     {
         Debug.Log("Go to Jail");
         GameObject goToJailCard = UIManager.Instance.CardGoToJail;
         goToJailCard.transform.GetChild(0).GetComponent<TextMeshProUGUI>().text = "Go To Jail!!!";
-        StartCoroutine(HideCardAfterDelay(goToJailCard, 3));
+
+        yield return StartCoroutine(HideCardAfterDelay(goToJailCard, 3));
+
         int index = BoardManager.GetInstance().GetIndexOfCellType(CellType.GOTOJAIL);
-        Debug.Log("jaill comming");
+        Debug.Log("Jail coming");
         isMoving = true;
-        StartCoroutine(MoveToTileNew(index));
+
+        yield return StartCoroutine(MoveToTileNew(index));
     }
     private IEnumerator HideCardAfterDelay(GameObject card, float delayTime)
     {
@@ -366,13 +498,17 @@ public class PlayerManager : NetworkBehaviour
         UpdateMoneyUI();
     }
     [ClientRpc]
-    private void JailClientRPC()
+    private void JailClientRPC(ulong clientId)
     {
-        isInJail = true;
-        turnsInJail = 2;
-        if (IsOwner)
+        if (NetworkManager.Singleton.LocalClientId == clientId)
         {
-            TurnManager.Instance.NextTurnServerRpc();
+            StartCoroutine(HideCardAfterDelay(UIManager.Instance.CardJail, 2));
+            isInJail = true;
+            turnsInJail = 2;
+            if (IsOwner)
+            {
+                TurnManager.Instance.NextTurnServerRpc();
+            }
         }
     }
 
@@ -405,9 +541,15 @@ public class PlayerManager : NetworkBehaviour
     [ClientRpc]
     private void HandleChanceClientRpc()
     {
+        StartCoroutine(HandleChanceSequence());
+    }
+
+    private IEnumerator HandleChanceSequence()
+    {
         GameObject chanceCard = UIManager.Instance.CardChance;
         TextMeshProUGUI decription = chanceCard.GetComponentInChildren<TextMeshProUGUI>();
         CellType target;
+
         switch (ChanceHandler.Instance.DrawChaneCard().type)
         {
             case ChanceType.GOTOJAIL:
@@ -422,12 +564,19 @@ public class PlayerManager : NetworkBehaviour
             default:
                 target = CellType.GO; break;
         }
+
         SoundManager.PlaySound(SoundManager.Sound.Chance);
-        StartCoroutine(HideCardAfterDelay(chanceCard, 5));
+
+        // Chờ UI hiển thị trong 5 giây trước khi xử lý sự kiện
+        yield return StartCoroutine(HideCardAfterDelay(chanceCard, 5));
+
         Debug.Log("ChaneCard: " + target);
+
         int index = BoardManager.GetInstance().GetIndexOfClosetCellType(target, currentTileIndex);
         isMoving = true;
-        StartCoroutine(MoveToTileNew(index));
+
+        yield return StartCoroutine(MoveToTileNew(index));
+
         if (IsOwner)
         {
             TurnManager.Instance.NextTurnServerRpc();
@@ -440,14 +589,6 @@ public class PlayerManager : NetworkBehaviour
             moneyUI.text = "Money: " + money.ToString();
         }
 
-    }
-
-    public void MoveToChaneCard()
-    {
-        Debug.Log("Move to chance card");
-        int index = BoardManager.GetInstance().GetIndexOfCellType(CellType.CHANCE);
-        isMoving = true;
-        StartCoroutine(MoveToTile(index));
     }
 
     public override void OnNetworkSpawn()
@@ -530,6 +671,12 @@ public class PlayerManager : NetworkBehaviour
     {
         money += amount;
         SoundManager.PlaySound(SoundManager.Sound.IncreaseMoney);
+        UpdateMoneyUI();
+    }
+    public void DecreaseMoney(int amount)
+    {
+        money -= amount;
+        SoundManager.PlaySound(SoundManager.Sound.DecreaseMoney);
         UpdateMoneyUI();
     }
 }

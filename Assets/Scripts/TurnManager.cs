@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using TMPro;
@@ -14,7 +13,7 @@ public class TurnManager : NetworkBehaviour
     private NetworkVariable<int> currentPlayerTurn = new NetworkVariable<int>();
     [SerializeField] private float turnTimeLimit = 30f;
     private float currentTurnTime;
-    private List<ulong> playerIds = new List<ulong>(); 
+    private List<ulong> playerIds = new List<ulong>();
     [SerializeField] private TextMeshProUGUI turnText;
     [SerializeField] private TextMeshProUGUI timerText;
 
@@ -27,7 +26,7 @@ public class TurnManager : NetworkBehaviour
             Instance = this;
             currentPlayerTurn.OnValueChanged += OnTurnChanged;
             NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-           
+
         }
         else
         {
@@ -55,32 +54,32 @@ public class TurnManager : NetworkBehaviour
                 //NextTurnServerRpc();
             }
         }
-        CheckEndGame();   
+        CheckEndGame();
     }
 
     private void CheckEndGame()
     {
-        if (turnCount >= maxTurns)
-        {
-            Debug.Log("Game Over: Max turns reached!");
-            EndGame();
-            return;
-        }
+        //if (turnCount >= maxTurns)
+        //{
+        //    Debug.Log("Game Over: Max turns reached!");
+        //    EndGame();
+        //    return;
+        //}
 
-        int activePlayers = 0;
-        foreach (var playerId in playerIds)
-        {
-            var playerManager = NetworkManager.Singleton.ConnectedClients[playerId].PlayerObject.GetComponent<PlayerManager>();
-            if (playerManager != null && !playerManager.GetIsBankrupt())
-            {
-                activePlayers++;
-            }
-        }
-        if (activePlayers <= 1)
-        {
-            Debug.Log("Game Over: Only one player left!");
-            EndGame();
-        }
+        //int activePlayers = 0;
+        //foreach (var playerId in playerIds)
+        //{
+        //    var playerManager = NetworkManager.Singleton.ConnectedClients[playerId].PlayerObject.GetComponent<PlayerController>();
+        //    if (playerManager != null && !playerManager.GetIsBankrupt())
+        //    {
+        //        activePlayers++;
+        //    }
+        //}
+        //if (activePlayers <= 1)
+        //{
+        //    Debug.Log("Game Over: Only one player left!");
+        //    EndGame();
+        //}
     }
 
     private void EndGame()
@@ -90,10 +89,10 @@ public class TurnManager : NetworkBehaviour
 
         foreach (var playerId in playerIds)
         {
-            var playerManager = NetworkManager.Singleton.ConnectedClients[playerId].PlayerObject.GetComponent<PlayerManager>();
+            var playerManager = NetworkManager.Singleton.ConnectedClients[playerId].PlayerObject.GetComponent<PlayerController>();
             if (playerManager != null)
             {
-                int playerMoney = playerManager.GetMoney(); 
+                int playerMoney = playerManager.GetMoney();
                 if (playerMoney > maxMoney)
                 {
                     maxMoney = playerMoney;
@@ -102,7 +101,7 @@ public class TurnManager : NetworkBehaviour
             }
         }
         if (maxMoney > int.MinValue)
-        {     
+        {
             AnnounceWinnerClientRpc(winnerId);
         }
     }
@@ -115,10 +114,10 @@ public class TurnManager : NetworkBehaviour
 
         foreach (var player in players)
         {
-            var playerManager = player.GetComponent<PlayerManager>();
+            var playerManager = player.GetComponent<PlayerController>();
             if (playerManager != null && playerManager.OwnerClientId == winnerId)
             {
-                winnerName = playerManager.name; // Giả sử PlayerManager có thuộc tính name
+                winnerName = playerManager.name;
                 break;
             }
         }
@@ -155,9 +154,9 @@ public class TurnManager : NetworkBehaviour
             var pl = GameObject.FindGameObjectsWithTag("Player");
             foreach (var player in pl)
             {
-                if (player.GetComponent<PlayerManager>().OwnerClientId == id)
+                if (player.GetComponent<PlayerController>().OwnerClientId == id)
                 {
-                    name = player.GetComponent<PlayerManager>().name;
+                    name = player.GetComponent<PlayerController>().name;
                     break;
                 }
             }
@@ -185,7 +184,7 @@ public class TurnManager : NetworkBehaviour
         var players = GameObject.FindGameObjectsWithTag("Player");
         foreach (var player in players)
         {
-            var playerManager = player.GetComponent<PlayerManager>();
+            var playerManager = player.GetComponent<PlayerController>();
             if (playerManager != null)
             {
                 playerIds.Add(playerManager.OwnerClientId);
@@ -246,8 +245,8 @@ public class TurnManager : NetworkBehaviour
         currentTurnTime = turnTimeLimit;
 
         turnCount++;
-        NetworkManager.Singleton.ConnectedClients[playerIds[currentPlayerTurn.Value]].PlayerObject.GetComponent<PlayerManager>().CheckInJail();
-        NetworkManager.Singleton.ConnectedClients[playerIds[currentPlayerTurn.Value]].PlayerObject.GetComponent<PlayerManager>().CheckBankrupt();
+        NetworkManager.Singleton.ConnectedClients[playerIds[currentPlayerTurn.Value]].PlayerObject.GetComponent<PlayerController>().CheckInJail();
+        NetworkManager.Singleton.ConnectedClients[playerIds[currentPlayerTurn.Value]].PlayerObject.GetComponent<PlayerController>().CheckBankrupt();
 
         PlayerTurnNotificationClientRpc(playerIds[currentPlayerTurn.Value]);
     }
@@ -269,7 +268,7 @@ public class TurnManager : NetworkBehaviour
 
     public bool IsMyTurn()
     {
-        if(playerIds.Count==0)
+        if (playerIds.Count == 0)
         {
             SyncPlayerIdsServerRpc();
         }
@@ -280,21 +279,10 @@ public class TurnManager : NetworkBehaviour
     {
         if (turnText != null)
         {
-            var currentPlayerId = playerIds[currentPlayerTurn.Value];
-
-            var players = GameObject.FindGameObjectsWithTag("Player");
-            foreach (var player in players)
-            {
-                if (player.GetComponent<PlayerManager>().OwnerClientId == currentPlayerId)
-                {
-                    turnText.text = IsMyTurn() ?
-                                    "Your Turn!" :
-                                    $"{player.GetComponent<PlayerManager>().name}'s Turn";
-                    break;
-                }
-            }
-
-
+            //PlayerController currentPlayer = NetworkManager.Singleton.ConnectedClients[playerIds[currentPlayerTurn.Value]].PlayerObject.GetComponent<PlayerController>();
+            turnText.text = IsMyTurn() ?
+                            "Your Turn!" :
+                            $"Other's Turn";
         }
     }
     private void UpdateTimerUI()
